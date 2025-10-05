@@ -72,10 +72,6 @@ class TrainingSessionAnalyzer {
             this.exportSessionData();
         });
 
-        document.getElementById('clearSessionBtn').addEventListener('click', () => {
-            this.clearSession();
-        });
-
         // Individual analysis close button
         document.getElementById('closeAnalysisBtn').addEventListener('click', () => {
             this.closeIndividualAnalysis();
@@ -112,29 +108,16 @@ class TrainingSessionAnalyzer {
         };
 
         this.throws = [];
-        this.saveSessionData();
-        this.updateUI();
-
-        if (window.analytics) {
-            window.analytics.trackEvent('new_session_started');
-        }
-    }
-
-    clearSession() {
-        const confirmed = confirm('Clear all throw data from this session?');
-        if (!confirmed) return;
-
-        this.throws = [];
-        this.currentSession = null;
         // Clear localStorage too
         localStorage.removeItem('curling_session_throws');
         localStorage.removeItem('curling_current_session');
         localStorage.removeItem('curling_latest_throw');
         
+        this.saveSessionData();
         this.updateUI();
 
         if (window.analytics) {
-            window.analytics.trackEvent('session_cleared');
+            window.analytics.trackEvent('new_session_started');
         }
     }
 
