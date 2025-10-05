@@ -615,6 +615,9 @@ class CurlingSlideAnalyzer {
         // Calculate analysis metrics
         const analysis = this.calculateAnalysisMetrics();
         
+        // Save throw to session
+        this.saveThrowToSession(analysis);
+        
         // Track analysis completion
         if (window.analytics) {
             window.analytics.trackEvent('analysis_complete', {
@@ -691,6 +694,32 @@ class CurlingSlideAnalyzer {
         const mean = data.reduce((a, b) => a + b, 0) / data.length;
         const variance = data.reduce((acc, val) => acc + Math.pow(val - mean, 2), 0) / data.length;
         return variance;
+    }
+
+    saveThrowToSession(analysis) {
+        try {
+            // Create throw data object
+            const throwData = {
+                id: Date.now(),
+                timestamp: new Date().toISOString(),
+                ...analysis,
+                // Could also save raw sensor data if needed for detailed analysis
+                // sensorData: this.sensorData
+            };
+
+            // Save as latest throw for the comparison page to pick up
+            localStorage.setItem('curling_latest_throw', JSON.stringify(throwData));
+
+            // Also trigger storage event for comparison page if it's open
+            window.dispatchEvent(new StorageEvent('storage', {
+                key: 'curling_latest_throw',
+                newValue: JSON.stringify(throwData)
+            }));
+
+            console.log('Throw saved to session:', throwData);
+        } catch (error) {
+            console.error('Error saving throw to session:', error);
+        }
     }
 
     resizeCharts() {

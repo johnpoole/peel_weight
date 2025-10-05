@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Training Session Analysis - Curling Slide Analyzer</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="comparison.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="analytics.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <nav class="nav-menu">
+                <a href="index.html" class="nav-link">📱 Record</a>
+                <a href="comparison.html" class="nav-link active">📊 Analysis</a>
+            </nav>
+            <h1>🥌 Training Session Analysis</h1>
+            <p>Compare throws and track your improvement</p>
+        </header>
+
+        <main>
+            <!-- Session Controls -->
+            <section class="session-controls">
+                <div class="session-info">
+                    <h3>Current Session</h3>
+                    <div class="session-stats">
+                        <span>Throws: <strong id="throwCount">0</strong></span>
+                        <span>Duration: <strong id="sessionDuration">0 min</strong></span>
+                        <span>Started: <strong id="sessionStart">-</strong></span>
+                    </div>
+                </div>
+                <div class="session-actions">
+                    <button id="newSessionBtn" class="action-btn new-session">
+                        <span class="btn-icon">🆕</span>
+                        <span class="btn-text">New Session</span>
+                    </button>
+                    <button id="exportBtn" class="action-btn export">
+                        <span class="btn-icon">💾</span>
+                        <span class="btn-text">Export Data</span>
+                    </button>
+                    <button id="clearSessionBtn" class="action-btn clear">
+                        <span class="btn-icon">🗑️</span>
+                        <span class="btn-text">Clear Session</span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Quick Stats Overview -->
+            <section class="quick-stats" id="quickStats" style="display: none;">
+                <h3>Session Overview</h3>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <label>Avg Push-off:</label>
+                        <span id="avgPushoff">-</span> m/s²
+                    </div>
+                    <div class="stat-item">
+                        <label>Avg Velocity:</label>
+                        <span id="avgVelocity">-</span> m/s
+                    </div>
+                    <div class="stat-item">
+                        <label>Avg Stability:</label>
+                        <span id="avgStability">-</span>%
+                    </div>
+                    <div class="stat-item">
+                        <label>Best Glide:</label>
+                        <span id="bestGlide">-</span>
+                    </div>
+                    <div class="stat-item">
+                        <label>Consistency:</label>
+                        <span id="consistency">-</span>%
+                    </div>
+                    <div class="stat-item">
+                        <label>Improvement:</label>
+                        <span id="improvement">-</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Trend Charts -->
+            <section class="trend-section" id="trendSection" style="display: none;">
+                <h3>Performance Trends</h3>
+                
+                <div class="chart-container">
+                    <h4>Push-off Strength Over Time</h4>
+                    <canvas id="pushoffTrendChart"></canvas>
+                </div>
+
+                <div class="chart-container">
+                    <h4>Velocity & Stability Trends</h4>
+                    <canvas id="velocityStabilityChart"></canvas>
+                </div>
+
+                <div class="chart-container">
+                    <h4>Deceleration Rate (Drag) Analysis</h4>
+                    <canvas id="decelTrendChart"></canvas>
+                </div>
+            </section>
+
+            <!-- Throw Comparison Table -->
+            <section class="comparison-section" id="comparisonSection" style="display: none;">
+                <h3>Throw-by-Throw Comparison</h3>
+                <div class="table-container">
+                    <table class="comparison-table" id="comparisonTable">
+                        <thead>
+                            <tr>
+                                <th>Throw #</th>
+                                <th>Time</th>
+                                <th>Push-off (m/s²)</th>
+                                <th>Peak Vel (m/s)</th>
+                                <th>Duration (s)</th>
+                                <th>Decel Rate</th>
+                                <th>Stability (%)</th>
+                                <th>Efficiency</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="comparisonTableBody">
+                            <!-- Rows will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Individual Throw Analysis -->
+            <section class="individual-analysis" id="individualAnalysis" style="display: none;">
+                <h3>Detailed Throw Analysis</h3>
+                <div class="analysis-header">
+                    <h4 id="analysisTitle">Throw #1 Analysis</h4>
+                    <button id="closeAnalysisBtn" class="close-btn">✕</button>
+                </div>
+                
+                <div class="analysis-charts">
+                    <div class="chart-container">
+                        <h5>Acceleration & Velocity Profile</h5>
+                        <canvas id="individualAccelChart"></canvas>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <h5>Body Stability Analysis</h5>
+                        <canvas id="individualStabilityChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="analysis-metrics">
+                    <h5>Detailed Metrics</h5>
+                    <div class="metrics-grid" id="detailedMetrics">
+                        <!-- Populated by JavaScript -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- No Data State -->
+            <section class="no-data-section" id="noDataSection">
+                <div class="no-data-content">
+                    <h3>No Training Data</h3>
+                    <p>Start recording throws to see analysis and comparisons.</p>
+                    <a href="index.html" class="record-link">
+                        <span class="btn-icon">📱</span>
+                        <span>Go to Recording Page</span>
+                    </a>
+                    <p class="help-text">
+                        💡 Record multiple throws in a session to unlock trend analysis, 
+                        throw comparisons, and performance insights.
+                    </p>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <script src="comparison.js"></script>
+</body>
+</html>
