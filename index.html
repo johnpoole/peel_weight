@@ -6,6 +6,7 @@
     <title>Curling Throw Analyzer</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="analytics.js"></script>
 </head>
 <body>
     <div class="container">
@@ -141,6 +142,16 @@
                     <li>📊 Analyze your push-off, slide, and stability data</li>
                 </ol>
                 <p class="tip">💡 <strong>Tip:</strong> Keep phone secured in chest pocket or with a chest strap for best torso motion capture.</p>
+            </section>
+
+            <!-- Privacy Notice -->
+            <section class="privacy-section">
+                <h3>Privacy & Analytics</h3>
+                <p>This app collects anonymous usage analytics to help improve the experience. No personal data is collected.</p>
+                <div class="privacy-controls">
+                    <button onclick="analyticsOptOut()" class="privacy-btn">Disable Analytics</button>
+                    <button onclick="analyticsOptIn()" class="privacy-btn">Enable Analytics</button>
+                </div>
             </section>
         </main>
     </div>

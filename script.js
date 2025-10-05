@@ -124,6 +124,14 @@ class CurlingSlideAnalyzer {
         this.startTime = Date.now();
         this.clearData(false); // Clear data but don't update UI
         
+        // Track recording start
+        if (window.analytics) {
+            window.analytics.trackEvent('recording_start', {
+                userAgent: navigator.userAgent,
+                timestamp: new Date().toISOString()
+            });
+        }
+        
         this.updateUI();
         this.startSensorListening();
         this.startRecordingTimer();
@@ -133,6 +141,18 @@ class CurlingSlideAnalyzer {
         this.isRecording = false;
         this.stopSensorListening();
         this.stopRecordingTimer();
+        
+        // Track recording stop with data
+        if (window.analytics) {
+            window.analytics.trackEvent('recording_stop', {
+                dataPoints: this.sensorData.acceleration.x.length,
+                duration: this.sensorData.acceleration.timestamps.length > 0 ? 
+                    this.sensorData.acceleration.timestamps[this.sensorData.acceleration.timestamps.length - 1] - 
+                    this.sensorData.acceleration.timestamps[0] : 0,
+                timestamp: new Date().toISOString()
+            });
+        }
+        
         this.updateUI();
         this.processData();
         this.createCharts();
@@ -248,6 +268,14 @@ class CurlingSlideAnalyzer {
     }
 
     clearData(updateUI = true) {
+        // Track data clearing
+        if (window.analytics && this.hasData()) {
+            window.analytics.trackEvent('data_cleared', {
+                hadData: true,
+                timestamp: new Date().toISOString()
+            });
+        }
+
         this.sensorData = {
             acceleration: { x: [], y: [], z: [], timestamps: [] },
             gyroscope: { x: [], y: [], z: [], timestamps: [] },
@@ -586,6 +614,18 @@ class CurlingSlideAnalyzer {
         
         // Calculate analysis metrics
         const analysis = this.calculateAnalysisMetrics();
+        
+        // Track analysis completion
+        if (window.analytics) {
+            window.analytics.trackEvent('analysis_complete', {
+                pushoffStrength: analysis.pushoffStrength,
+                peakVelocity: analysis.peakVelocity,
+                slideDuration: analysis.slideDuration,
+                stabilityScore: analysis.stabilityScore,
+                glideEfficiency: analysis.glideEfficiency,
+                timestamp: new Date().toISOString()
+            });
+        }
         
         // Update analysis display
         document.getElementById('pushoffStrength').textContent = analysis.pushoffStrength.toFixed(2);
