@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Curling Throw Analyzer</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🥌 Curling Slide Analyzer</h1>
+            <p>Analyze your delivery mechanics and slide efficiency</p>
+        </header>
+
+        <main>
+            <!-- Status Section -->
+            <section class="status-section">
+                <div class="status-indicator" id="statusIndicator">
+                    <span class="status-dot" id="statusDot"></span>
+                    <span id="statusText">Ready to Record</span>
+                </div>
+                <div class="sensor-status">
+                    <div class="sensor-check">
+                        <span>📱 Accelerometer:</span>
+                        <span id="accelStatus">Checking...</span>
+                    </div>
+                    <div class="sensor-check">
+                        <span>🔄 Gyroscope:</span>
+                        <span id="gyroStatus">Checking...</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Controls Section -->
+            <section class="controls-section">
+                <button id="recordBtn" class="record-btn">
+                    <span class="btn-icon">⏺️</span>
+                    <span class="btn-text">Start Recording</span>
+                </button>
+                <button id="clearBtn" class="clear-btn" disabled>
+                    <span class="btn-icon">🗑️</span>
+                    <span class="btn-text">Clear Data</span>
+                </button>
+            </section>
+
+            <!-- Live Data Section -->
+            <section class="live-data-section" id="liveDataSection" style="display: none;">
+                <h3>Live Sensor Data</h3>
+                <div class="live-data-grid">
+                    <div class="live-data-item">
+                        <label>Forward Accel:</label>
+                        <span id="accelX">0.00</span> m/s²
+                    </div>
+                    <div class="live-data-item">
+                        <label>Lateral Accel:</label>
+                        <span id="accelY">0.00</span> m/s²
+                    </div>
+                    <div class="live-data-item">
+                        <label>Vertical Accel:</label>
+                        <span id="accelZ">0.00</span> m/s²
+                    </div>
+                    <div class="live-data-item">
+                        <label>Pitch Rate:</label>
+                        <span id="gyroX">0.00</span> °/s
+                    </div>
+                    <div class="live-data-item">
+                        <label>Roll Rate:</label>
+                        <span id="gyroY">0.00</span> °/s
+                    </div>
+                    <div class="live-data-item">
+                        <label>Yaw Rate:</label>
+                        <span id="gyroZ">0.00</span> °/s
+                    </div>
+                </div>
+                <div class="recording-timer">
+                    Recording: <span id="recordingTime">0.0</span>s
+                </div>
+            </section>
+
+            <!-- Charts Section -->
+            <section class="charts-section" id="chartsSection" style="display: none;">
+                <h3>Throw Analysis</h3>
+                
+                <div class="chart-container">
+                    <h4>Forward Acceleration & Velocity</h4>
+                    <canvas id="accelerationChart"></canvas>
+                </div>
+
+                <div class="chart-container">
+                    <h4>Body Stability (Pitch/Roll/Yaw)</h4>
+                    <canvas id="gyroscopeChart"></canvas>
+                </div>
+
+                <div class="chart-container">
+                    <h4>Slide Velocity Profile</h4>
+                    <canvas id="velocityChart"></canvas>
+                </div>
+
+                <!-- Analysis Results -->
+                <div class="analysis-results" id="analysisResults">
+                    <h4>Throw Analysis</h4>
+                    <div class="analysis-grid">
+                        <div class="analysis-item">
+                            <label>Push-off Strength:</label>
+                            <span id="pushoffStrength">-</span> m/s²
+                        </div>
+                        <div class="analysis-item">
+                            <label>Peak Velocity:</label>
+                            <span id="peakVelocity">-</span> m/s
+                        </div>
+                        <div class="analysis-item">
+                            <label>Slide Duration:</label>
+                            <span id="slideDuration">-</span> seconds
+                        </div>
+                        <div class="analysis-item">
+                            <label>Deceleration Rate:</label>
+                            <span id="decelRate">-</span> m/s²
+                        </div>
+                        <div class="analysis-item">
+                            <label>Stability Score:</label>
+                            <span id="stabilityScore">-</span>%
+                        </div>
+                        <div class="analysis-item">
+                            <label>Glide Efficiency:</label>
+                            <span id="glideEfficiency">-</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Instructions Section -->
+            <section class="instructions-section">
+                <h3>How to Use</h3>
+                <ol>
+                    <li>📱 Place phone in chest pocket or secure to torso</li>
+                    <li>⏺️ Start recording before beginning your delivery</li>
+                    <li>🥌 Perform your complete curling delivery and slide</li>
+                    <li>⏹️ Stop recording after coming to rest</li>
+                    <li>📊 Analyze your push-off, slide, and stability data</li>
+                </ol>
+                <p class="tip">💡 <strong>Tip:</strong> Keep phone secured in chest pocket or with a chest strap for best torso motion capture.</p>
+            </section>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

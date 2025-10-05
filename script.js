@@ -1,0 +1,701 @@
+class CurlingSlideAnalyzer {
+    constructor() {
+        this.isRecording = false;
+        this.sensorData = {
+            acceleration: { x: [], y: [], z: [], timestamps: [] },
+            gyroscope: { x: [], y: [], z: [], timestamps: [] },
+            velocity: { x: [], timestamps: [] }
+        };
+        this.startTime = null;
+        this.recordingInterval = null;
+        this.charts = {};
+        
+        this.init();
+    }
+
+    async init() {
+        this.setupEventListeners();
+        await this.checkSensorSupport();
+        this.updateUI();
+    }
+
+    setupEventListeners() {
+        const recordBtn = document.getElementById('recordBtn');
+        const clearBtn = document.getElementById('clearBtn');
+
+        recordBtn.addEventListener('click', () => {
+            if (this.isRecording) {
+                this.stopRecording();
+            } else {
+                this.startRecording();
+            }
+        });
+
+        clearBtn.addEventListener('click', () => {
+            this.clearData();
+        });
+
+        // Handle orientation change
+        window.addEventListener('orientationchange', () => {
+            setTimeout(() => {
+                this.resizeCharts();
+            }, 500);
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            this.resizeCharts();
+        });
+    }
+
+    async checkSensorSupport() {
+        const accelStatus = document.getElementById('accelStatus');
+        const gyroStatus = document.getElementById('gyroStatus');
+
+        // Check accelerometer support
+        if ('DeviceMotionEvent' in window) {
+            if (typeof DeviceMotionEvent.requestPermission === 'function') {
+                // iOS 13+ requires permission
+                accelStatus.textContent = 'Permission Required';
+                accelStatus.style.color = '#ed8936';
+            } else {
+                accelStatus.textContent = 'Available';
+                accelStatus.style.color = '#48bb78';
+            }
+        } else {
+            accelStatus.textContent = 'Not Supported';
+            accelStatus.style.color = '#f56565';
+        }
+
+        // Check gyroscope support
+        if ('DeviceOrientationEvent' in window) {
+            if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                // iOS 13+ requires permission
+                gyroStatus.textContent = 'Permission Required';
+                gyroStatus.style.color = '#ed8936';
+            } else {
+                gyroStatus.textContent = 'Available';
+                gyroStatus.style.color = '#48bb78';
+            }
+        } else {
+            gyroStatus.textContent = 'Not Supported';
+            gyroStatus.style.color = '#f56565';
+        }
+    }
+
+    async requestPermissions() {
+        if (typeof DeviceMotionEvent.requestPermission === 'function') {
+            try {
+                const motionPermission = await DeviceMotionEvent.requestPermission();
+                const orientationPermission = await DeviceOrientationEvent.requestPermission();
+                
+                if (motionPermission === 'granted' && orientationPermission === 'granted') {
+                    this.updateSensorStatus();
+                    return true;
+                } else {
+                    alert('Sensor permissions are required for this app to work.');
+                    return false;
+                }
+            } catch (error) {
+                console.error('Error requesting permissions:', error);
+                alert('Error requesting sensor permissions.');
+                return false;
+            }
+        }
+        return true; // Assume granted for non-iOS devices
+    }
+
+    updateSensorStatus() {
+        const accelStatus = document.getElementById('accelStatus');
+        const gyroStatus = document.getElementById('gyroStatus');
+        
+        accelStatus.textContent = 'Available';
+        accelStatus.style.color = '#48bb78';
+        gyroStatus.textContent = 'Available';
+        gyroStatus.style.color = '#48bb78';
+    }
+
+    async startRecording() {
+        // Request permissions if needed
+        const hasPermissions = await this.requestPermissions();
+        if (!hasPermissions) return;
+
+        this.isRecording = true;
+        this.startTime = Date.now();
+        this.clearData(false); // Clear data but don't update UI
+        
+        this.updateUI();
+        this.startSensorListening();
+        this.startRecordingTimer();
+    }
+
+    stopRecording() {
+        this.isRecording = false;
+        this.stopSensorListening();
+        this.stopRecordingTimer();
+        this.updateUI();
+        this.processData();
+        this.createCharts();
+        this.showAnalysis();
+    }
+
+    startSensorListening() {
+        // Listen to device motion (accelerometer + gyroscope)
+        this.deviceMotionHandler = (event) => {
+            if (!this.isRecording) return;
+
+            const timestamp = (Date.now() - this.startTime) / 1000;
+
+            // Accelerometer data - align with curling mechanics
+            // X = forward/backward (down the sheet)
+            // Y = side-to-side (lateral)
+            // Z = vertical (up/down)
+            if (event.accelerationIncludingGravity) {
+                this.sensorData.acceleration.x.push(event.accelerationIncludingGravity.x || 0);
+                this.sensorData.acceleration.y.push(event.accelerationIncludingGravity.y || 0);
+                this.sensorData.acceleration.z.push(event.accelerationIncludingGravity.z || 0);
+                this.sensorData.acceleration.timestamps.push(timestamp);
+            }
+
+            // Gyroscope data - body rotation rates (convert to degrees/second)
+            // Alpha = yaw (rotation around vertical)
+            // Beta = pitch (forward/backward tilt)  
+            // Gamma = roll (side-to-side tilt)
+            if (event.rotationRate) {
+                this.sensorData.gyroscope.x.push((event.rotationRate.beta || 0) * 180 / Math.PI); // Pitch
+                this.sensorData.gyroscope.y.push((event.rotationRate.gamma || 0) * 180 / Math.PI); // Roll
+                this.sensorData.gyroscope.z.push((event.rotationRate.alpha || 0) * 180 / Math.PI); // Yaw
+                this.sensorData.gyroscope.timestamps.push(timestamp);
+            }
+
+            this.updateLiveData(event);
+        };
+
+        window.addEventListener('devicemotion', this.deviceMotionHandler);
+    }
+
+    stopSensorListening() {
+        if (this.deviceMotionHandler) {
+            window.removeEventListener('devicemotion', this.deviceMotionHandler);
+        }
+    }
+
+    startRecordingTimer() {
+        this.recordingInterval = setInterval(() => {
+            if (this.isRecording) {
+                const elapsed = (Date.now() - this.startTime) / 1000;
+                document.getElementById('recordingTime').textContent = elapsed.toFixed(1);
+            }
+        }, 100);
+    }
+
+    stopRecordingTimer() {
+        if (this.recordingInterval) {
+            clearInterval(this.recordingInterval);
+            this.recordingInterval = null;
+        }
+    }
+
+    updateLiveData(event) {
+        if (event.accelerationIncludingGravity) {
+            document.getElementById('accelX').textContent = (event.accelerationIncludingGravity.x || 0).toFixed(2);
+            document.getElementById('accelY').textContent = (event.accelerationIncludingGravity.y || 0).toFixed(2);
+            document.getElementById('accelZ').textContent = (event.accelerationIncludingGravity.z || 0).toFixed(2);
+        }
+
+        if (event.rotationRate) {
+            document.getElementById('gyroX').textContent = ((event.rotationRate.beta || 0) * 180 / Math.PI).toFixed(1);
+            document.getElementById('gyroY').textContent = ((event.rotationRate.gamma || 0) * 180 / Math.PI).toFixed(1);
+            document.getElementById('gyroZ').textContent = ((event.rotationRate.alpha || 0) * 180 / Math.PI).toFixed(1);
+        }
+    }
+
+    updateUI() {
+        const recordBtn = document.getElementById('recordBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const liveDataSection = document.getElementById('liveDataSection');
+
+        if (this.isRecording) {
+            recordBtn.innerHTML = '<span class="btn-icon">⏹️</span><span class="btn-text">Stop Recording</span>';
+            recordBtn.classList.add('recording');
+            statusDot.classList.add('recording');
+            statusText.textContent = 'Recording...';
+            liveDataSection.style.display = 'block';
+            clearBtn.disabled = true;
+        } else {
+            recordBtn.innerHTML = '<span class="btn-icon">⏺️</span><span class="btn-text">Start Recording</span>';
+            recordBtn.classList.remove('recording');
+            statusDot.classList.remove('recording');
+            
+            if (this.hasData()) {
+                statusText.textContent = 'Data Ready for Analysis';
+                statusDot.classList.add('processing');
+                clearBtn.disabled = false;
+                liveDataSection.style.display = 'none';
+            } else {
+                statusText.textContent = 'Ready to Record';
+                statusDot.classList.remove('processing');
+                clearBtn.disabled = true;
+                liveDataSection.style.display = 'none';
+            }
+        }
+    }
+
+    hasData() {
+        return this.sensorData.acceleration.x.length > 0 || this.sensorData.gyroscope.x.length > 0;
+    }
+
+    clearData(updateUI = true) {
+        this.sensorData = {
+            acceleration: { x: [], y: [], z: [], timestamps: [] },
+            gyroscope: { x: [], y: [], z: [], timestamps: [] },
+            velocity: { x: [], timestamps: [] }
+        };
+
+        // Hide charts section
+        document.getElementById('chartsSection').style.display = 'none';
+        
+        // Clear existing charts
+        Object.values(this.charts).forEach(chart => {
+            if (chart) chart.destroy();
+        });
+        this.charts = {};
+
+        if (updateUI) {
+            this.updateUI();
+        }
+    }
+
+    processData() {
+        // Basic data processing and validation
+        if (!this.hasData()) {
+            alert('No sensor data recorded. Please try again.');
+            return;
+        }
+
+        // Calculate velocity by integrating forward acceleration
+        this.calculateVelocity();
+
+        console.log('Processing delivery data...');
+        console.log('Acceleration points:', this.sensorData.acceleration.x.length);
+        console.log('Gyroscope points:', this.sensorData.gyroscope.x.length);
+        console.log('Velocity points:', this.sensorData.velocity.x.length);
+    }
+
+    calculateVelocity() {
+        const accel = this.sensorData.acceleration;
+        const velocity = { x: [0], timestamps: [accel.timestamps[0] || 0] };
+        
+        // Integrate forward acceleration to get velocity
+        for (let i = 1; i < accel.x.length; i++) {
+            const dt = accel.timestamps[i] - accel.timestamps[i-1];
+            const prevVel = velocity.x[velocity.x.length - 1];
+            const avgAccel = (accel.x[i] + accel.x[i-1]) / 2;
+            
+            // Remove gravity component and integrate
+            const newVel = prevVel + (avgAccel * dt);
+            velocity.x.push(newVel);
+            velocity.timestamps.push(accel.timestamps[i]);
+        }
+        
+        this.sensorData.velocity = velocity;
+    }
+
+    createCharts() {
+        if (!this.hasData()) return;
+
+        document.getElementById('chartsSection').style.display = 'block';
+
+        this.createAccelerationChart();
+        this.createGyroscopeChart();
+        this.createVelocityChart();
+    }
+
+    createAccelerationChart() {
+        const ctx = document.getElementById('accelerationChart').getContext('2d');
+        
+        if (this.charts.acceleration) {
+            this.charts.acceleration.destroy();
+        }
+
+        this.charts.acceleration = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: this.sensorData.acceleration.timestamps,
+                datasets: [
+                    {
+                        label: 'Forward (push-off & drag)',
+                        data: this.sensorData.acceleration.x,
+                        borderColor: '#f56565',
+                        backgroundColor: 'rgba(245, 101, 101, 0.1)',
+                        tension: 0.1,
+                        borderWidth: 2,
+                        pointRadius: 1,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Velocity',
+                        data: this.sensorData.velocity.x,
+                        borderColor: '#4299e1',
+                        backgroundColor: 'rgba(66, 153, 225, 0.1)',
+                        tension: 0.1,
+                        borderWidth: 3,
+                        pointRadius: 1,
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                },
+                scales: {
+                    x: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: 'Time (seconds)'
+                        }
+                    },
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: {
+                            display: true,
+                            text: 'Acceleration (m/s²)'
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: {
+                            display: true,
+                            text: 'Velocity (m/s)'
+                        },
+                        grid: {
+                            drawOnChartArea: false,
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    }
+                }
+            }
+        });
+    }
+
+    createGyroscopeChart() {
+        const ctx = document.getElementById('gyroscopeChart').getContext('2d');
+        
+        if (this.charts.gyroscope) {
+            this.charts.gyroscope.destroy();
+        }
+
+        this.charts.gyroscope = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: this.sensorData.gyroscope.timestamps,
+                datasets: [
+                    {
+                        label: 'Pitch (forward/back tilt)',
+                        data: this.sensorData.gyroscope.x,
+                        borderColor: '#ed8936',
+                        backgroundColor: 'rgba(237, 137, 54, 0.1)',
+                        tension: 0.1,
+                        borderWidth: 2,
+                        pointRadius: 1
+                    },
+                    {
+                        label: 'Roll (side-to-side tilt)',
+                        data: this.sensorData.gyroscope.y,
+                        borderColor: '#9f7aea',
+                        backgroundColor: 'rgba(159, 122, 234, 0.1)',
+                        tension: 0.1,
+                        borderWidth: 2,
+                        pointRadius: 1
+                    },
+                    {
+                        label: 'Yaw (torso rotation)',
+                        data: this.sensorData.gyroscope.z,
+                        borderColor: '#38b2ac',
+                        backgroundColor: 'rgba(56, 178, 172, 0.1)',
+                        tension: 0.1,
+                        borderWidth: 2,
+                        pointRadius: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                },
+                scales: {
+                    x: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: 'Time (seconds)'
+                        }
+                    },
+                    y: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: 'Angular Velocity (°/s)'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    }
+                }
+            }
+        });
+    }
+
+    createVelocityChart() {
+        const ctx = document.getElementById('velocityChart').getContext('2d');
+        
+        if (this.charts.velocity) {
+            this.charts.velocity.destroy();
+        }
+
+        // Calculate RMS stability index
+        const stabilityIndex = this.calculateStabilityIndex();
+
+        this.charts.velocity = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: this.sensorData.velocity.timestamps,
+                datasets: [
+                    {
+                        label: 'Forward Velocity',
+                        data: this.sensorData.velocity.x,
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        fill: true,
+                        tension: 0.1,
+                        borderWidth: 3,
+                        pointRadius: 1,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Stability Index',
+                        data: stabilityIndex,
+                        borderColor: '#f56565',
+                        backgroundColor: 'rgba(245, 101, 101, 0.1)',
+                        tension: 0.1,
+                        borderWidth: 2,
+                        pointRadius: 1,
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                },
+                scales: {
+                    x: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: 'Time (seconds)'
+                        }
+                    },
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: {
+                            display: true,
+                            text: 'Velocity (m/s)'
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: {
+                            display: true,
+                            text: 'Instability (°/s)'
+                        },
+                        grid: {
+                            drawOnChartArea: false,
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    }
+                }
+            }
+        });
+    }
+
+    calculateStabilityIndex() {
+        const gyro = this.sensorData.gyroscope;
+        const windowSize = 5; // 5-point moving window for RMS
+        const stabilityIndex = [];
+
+        for (let i = 0; i < gyro.x.length; i++) {
+            const start = Math.max(0, i - Math.floor(windowSize / 2));
+            const end = Math.min(gyro.x.length, i + Math.floor(windowSize / 2) + 1);
+            
+            let rmsSum = 0;
+            let count = 0;
+            
+            for (let j = start; j < end; j++) {
+                const pitchSq = Math.pow(gyro.x[j] || 0, 2);
+                const rollSq = Math.pow(gyro.y[j] || 0, 2);
+                rmsSum += pitchSq + rollSq; // Don't include yaw in stability calc
+                count++;
+            }
+            
+            const rms = Math.sqrt(rmsSum / count);
+            stabilityIndex.push(rms);
+        }
+        
+        return stabilityIndex;
+    }
+
+    showAnalysis() {
+        if (!this.hasData()) return;
+
+        const analysisResults = document.getElementById('analysisResults');
+        
+        // Calculate analysis metrics
+        const analysis = this.calculateAnalysisMetrics();
+        
+        // Update analysis display
+        document.getElementById('pushoffStrength').textContent = analysis.pushoffStrength.toFixed(2);
+        document.getElementById('peakVelocity').textContent = analysis.peakVelocity.toFixed(2);
+        document.getElementById('slideDuration').textContent = analysis.slideDuration.toFixed(2);
+        document.getElementById('decelRate').textContent = analysis.decelRate.toFixed(3);
+        document.getElementById('stabilityScore').textContent = analysis.stabilityScore.toFixed(0);
+        document.getElementById('glideEfficiency').textContent = analysis.glideEfficiency;
+
+        analysisResults.style.display = 'block';
+    }
+
+    calculateAnalysisMetrics() {
+        const accel = this.sensorData.acceleration;
+        const velocity = this.sensorData.velocity;
+        const gyro = this.sensorData.gyroscope;
+
+        // Push-off strength: peak forward acceleration in first 20% of delivery
+        const pushoffPeriod = Math.floor(accel.x.length * 0.2);
+        const pushoffData = accel.x.slice(0, pushoffPeriod);
+        const pushoffStrength = Math.max(...pushoffData.map(Math.abs));
+
+        // Peak velocity
+        const peakVelocity = Math.max(...velocity.x.map(Math.abs));
+
+        // Slide duration
+        const slideDuration = accel.timestamps.length > 0 ? 
+            accel.timestamps[accel.timestamps.length - 1] - accel.timestamps[0] : 0;
+
+        // Deceleration rate: average negative acceleration during slide
+        const slideData = accel.x.slice(pushoffPeriod);
+        const negativeAccel = slideData.filter(a => a < 0);
+        const decelRate = negativeAccel.length > 0 ? 
+            negativeAccel.reduce((a, b) => a + b, 0) / negativeAccel.length : 0;
+
+        // Stability score: inverse of RMS pitch/roll variance
+        const pitchRoll = gyro.x.map((pitch, i) => 
+            Math.sqrt(Math.pow(pitch, 2) + Math.pow(gyro.y[i] || 0, 2))
+        );
+        const stabilityVariance = this.calculateVariance(pitchRoll);
+        const stabilityScore = Math.max(0, 100 - (stabilityVariance * 2));
+
+        // Glide efficiency assessment
+        let glideEfficiency = 'Good';
+        const avgDecel = Math.abs(decelRate);
+        if (avgDecel > 2.0) glideEfficiency = 'Poor (High Drag)';
+        else if (avgDecel < 0.5) glideEfficiency = 'Excellent';
+        else if (avgDecel < 1.0) glideEfficiency = 'Very Good';
+
+        return {
+            pushoffStrength,
+            peakVelocity,
+            slideDuration,
+            decelRate: Math.abs(decelRate),
+            stabilityScore,
+            glideEfficiency
+        };
+    }
+
+    calculateVariance(data) {
+        if (data.length === 0) return 0;
+        
+        const mean = data.reduce((a, b) => a + b, 0) / data.length;
+        const variance = data.reduce((acc, val) => acc + Math.pow(val - mean, 2), 0) / data.length;
+        return variance;
+    }
+
+    resizeCharts() {
+        Object.values(this.charts).forEach(chart => {
+            if (chart) {
+                chart.resize();
+            }
+        });
+    }
+}
+
+// Initialize the application when the page loads
+document.addEventListener('DOMContentLoaded', () => {
+    const analyzer = new CurlingSlideAnalyzer();
+    
+    // Make it globally accessible for debugging
+    window.curlingAnalyzer = analyzer;
+});
+
+// Handle page visibility changes
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden && window.curlingAnalyzer && window.curlingAnalyzer.isRecording) {
+        // Auto-stop recording if user leaves the page
+        window.curlingAnalyzer.stopRecording();
+    }
+});
+
+// Prevent phone from sleeping during recording
+let wakeLock = null;
+
+async function requestWakeLock() {
+    if ('wakeLock' in navigator) {
+        try {
+            wakeLock = await navigator.wakeLock.request('screen');
+            console.log('Wake lock activated');
+        } catch (err) {
+            console.log('Wake lock failed:', err);
+        }
+    }
+}
+
+function releaseWakeLock() {
+    if (wakeLock) {
+        wakeLock.release();
+        wakeLock = null;
+        console.log('Wake lock released');
+    }
+}
