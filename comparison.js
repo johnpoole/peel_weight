@@ -133,7 +133,8 @@ class TrainingSessionAnalyzer {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `curling-session-${this.currentSession.id}.json`;
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+        a.download = `curling-session-${this.currentSession.id}-${timestamp}.json`;
         a.click();
         URL.revokeObjectURL(url);
 
