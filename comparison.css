@@ -93,9 +93,38 @@
     color: white;
 }
 
+.action-btn.debug {
+    background: linear-gradient(135deg, #ed8936, #dd6b20);
+    color: white;
+}
+
 .action-btn:hover {
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Debug Section */
+.debug-section {
+    background: rgba(237, 137, 54, 0.1);
+    border-left: 4px solid #ed8936;
+}
+
+.debug-content h4 {
+    color: #dd6b20;
+    margin-bottom: 10px;
+}
+
+.debug-content pre {
+    background: #2d3748;
+    color: #e2e8f0;
+    padding: 15px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 300px;
+    overflow-y: auto;
 }
 
 /* Quick Stats */

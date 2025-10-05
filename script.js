@@ -702,24 +702,90 @@ class CurlingSlideAnalyzer {
             const throwData = {
                 id: Date.now(),
                 timestamp: new Date().toISOString(),
-                ...analysis,
-                // Could also save raw sensor data if needed for detailed analysis
-                // sensorData: this.sensorData
+                ...analysis
             };
 
-            // Save as latest throw for the comparison page to pick up
+            // Get or create current session
+            let currentSession = null;
+            try {
+                const sessionData = localStorage.getItem('curling_current_session');
+                currentSession = sessionData ? JSON.parse(sessionData) : null;
+            } catch (e) {
+                currentSession = null;
+            }
+
+            // Create new session if none exists
+            if (!currentSession) {
+                currentSession = {
+                    id: 'session_' + Date.now(),
+                    startTime: new Date().toISOString(),
+                    name: `Session ${new Date().toLocaleDateString()}`
+                };
+                localStorage.setItem('curling_current_session', JSON.stringify(currentSession));
+            }
+
+            // Add session ID to throw data
+            throwData.sessionId = currentSession.id;
+
+            // Get existing throws array
+            let throws = [];
+            try {
+                const throwsData = localStorage.getItem('curling_session_throws');
+                throws = throwsData ? JSON.parse(throwsData) : [];
+            } catch (e) {
+                throws = [];
+            }
+
+            // Add new throw to array
+            throws.push(throwData);
+
+            // Save updated throws array
+            localStorage.setItem('curling_session_throws', JSON.stringify(throws));
+            
+            // Also save as latest throw for immediate pickup
             localStorage.setItem('curling_latest_throw', JSON.stringify(throwData));
 
-            // Also trigger storage event for comparison page if it's open
+            // Trigger storage event for comparison page if it's open
             window.dispatchEvent(new StorageEvent('storage', {
-                key: 'curling_latest_throw',
-                newValue: JSON.stringify(throwData)
+                key: 'curling_session_throws',
+                newValue: JSON.stringify(throws)
             }));
 
             console.log('Throw saved to session:', throwData);
+            console.log('Total throws in session:', throws.length);
+            
+            // Add visual feedback that save worked
+            this.showSaveConfirmation(throws.length);
         } catch (error) {
             console.error('Error saving throw to session:', error);
+            alert('Error saving throw data: ' + error.message);
         }
+    }
+
+    showSaveConfirmation(throwCount) {
+        // Create temporary notification
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #48bb78;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-weight: bold;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        `;
+        notification.textContent = `✅ Throw saved! (${throwCount} total)`;
+        document.body.appendChild(notification);
+        
+        // Remove after 3 seconds
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 3000);
     }
 
     resizeCharts() {

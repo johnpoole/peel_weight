@@ -41,6 +41,11 @@ class TrainingSessionAnalyzer {
             if (!this.currentSession && this.throws.length === 0) {
                 this.startNewSession();
             }
+
+            console.log('Loaded session data:', {
+                session: this.currentSession,
+                throwCount: this.throws.length
+            });
         } catch (error) {
             console.error('Error loading session data:', error);
             this.throws = [];
@@ -78,8 +83,10 @@ class TrainingSessionAnalyzer {
 
         // Listen for new throw data from main page
         window.addEventListener('storage', (e) => {
-            if (e.key === 'curling_latest_throw') {
-                this.handleNewThrow();
+            if (e.key === 'curling_session_throws') {
+                console.log('Storage event detected for session throws');
+                this.loadSessionData();
+                this.updateUI();
             }
         });
 
@@ -88,22 +95,8 @@ class TrainingSessionAnalyzer {
     }
 
     checkForNewThrow() {
-        const latestThrow = localStorage.getItem('curling_latest_throw');
-        if (latestThrow) {
-            this.handleNewThrow();
-        }
-    }
-
-    handleNewThrow() {
-        try {
-            const throwData = JSON.parse(localStorage.getItem('curling_latest_throw'));
-            if (throwData && !this.throws.find(t => t.id === throwData.id)) {
-                this.addThrow(throwData);
-                localStorage.removeItem('curling_latest_throw'); // Clear after processing
-            }
-        } catch (error) {
-            console.error('Error handling new throw:', error);
-        }
+        // Just reload data when page loads
+        this.loadSessionData();
     }
 
     startNewSession() {
@@ -127,32 +120,17 @@ class TrainingSessionAnalyzer {
         }
     }
 
-    addThrow(throwData) {
-        const throwEntry = {
-            id: throwData.id || Date.now(),
-            timestamp: new Date().toISOString(),
-            sessionId: this.currentSession.id,
-            ...throwData
-        };
-
-        this.throws.push(throwEntry);
-        this.saveSessionData();
-        this.updateUI();
-
-        if (window.analytics) {
-            window.analytics.trackEvent('throw_added_to_session', {
-                throwCount: this.throws.length,
-                sessionId: this.currentSession.id
-            });
-        }
-    }
-
     clearSession() {
         const confirmed = confirm('Clear all throw data from this session?');
         if (!confirmed) return;
 
         this.throws = [];
-        this.saveSessionData();
+        this.currentSession = null;
+        // Clear localStorage too
+        localStorage.removeItem('curling_session_throws');
+        localStorage.removeItem('curling_current_session');
+        localStorage.removeItem('curling_latest_throw');
+        
         this.updateUI();
 
         if (window.analytics) {
@@ -218,23 +196,23 @@ class TrainingSessionAnalyzer {
     calculateSessionSummary() {
         if (this.throws.length === 0) return {};
 
-        const pushoffs = this.throws.map(t => t.pushoffStrength);
-        const velocities = this.throws.map(t => t.peakVelocity);
-        const stabilities = this.throws.map(t => t.stabilityScore);
+        const pushoffs = this.throws.map(t => t.pushoffStrength || 0);
+        const velocities = this.throws.map(t => t.peakVelocity || 0);
+        const stabilities = this.throws.map(t => t.stabilityScore || 0);
 
         const avgPushoff = pushoffs.reduce((a, b) => a + b, 0) / pushoffs.length;
         const avgVelocity = velocities.reduce((a, b) => a + b, 0) / velocities.length;
         const avgStability = stabilities.reduce((a, b) => a + b, 0) / stabilities.length;
 
         // Best glide efficiency
-        const glideQualities = this.throws.map(t => t.glideEfficiency);
+        const glideQualities = this.throws.map(t => t.glideEfficiency || 'Good');
         const excellentCount = glideQualities.filter(g => g === 'Excellent').length;
         const veryGoodCount = glideQualities.filter(g => g === 'Very Good').length;
         let bestGlide = 'Good';
         if (excellentCount > 0) bestGlide = `${excellentCount} Excellent`;
         else if (veryGoodCount > 0) bestGlide = `${veryGoodCount} Very Good`;
 
-        // Consistency (inverse of coefficient of variation)
+        // Consistency
         const pushoffCV = this.calculateCV(pushoffs);
         const velocityCV = this.calculateCV(velocities);
         const stabilityCV = this.calculateCV(stabilities);
@@ -246,8 +224,8 @@ class TrainingSessionAnalyzer {
         if (this.throws.length >= 3) {
             const recent = this.throws.slice(-3);
             const early = this.throws.slice(0, 3);
-            const recentAvg = recent.reduce((a, t) => a + t.stabilityScore, 0) / recent.length;
-            const earlyAvg = early.reduce((a, t) => a + t.stabilityScore, 0) / early.length;
+            const recentAvg = recent.reduce((a, t) => a + (t.stabilityScore || 0), 0) / recent.length;
+            const earlyAvg = early.reduce((a, t) => a + (t.stabilityScore || 0), 0) / early.length;
             
             if (recentAvg > earlyAvg + 5) improvement = 'Improving';
             else if (recentAvg < earlyAvg - 5) improvement = 'Declining';
@@ -287,7 +265,7 @@ class TrainingSessionAnalyzer {
         }
 
         const labels = this.throws.map((_, i) => `Throw ${i + 1}`);
-        const data = this.throws.map(t => t.pushoffStrength);
+        const data = this.throws.map(t => t.pushoffStrength || 0);
 
         this.charts.pushoffTrend = new Chart(ctx, {
             type: 'line',
@@ -342,7 +320,7 @@ class TrainingSessionAnalyzer {
                 datasets: [
                     {
                         label: 'Peak Velocity (m/s)',
-                        data: this.throws.map(t => t.peakVelocity),
+                        data: this.throws.map(t => t.peakVelocity || 0),
                         borderColor: '#4299e1',
                         backgroundColor: 'rgba(66, 153, 225, 0.1)',
                         tension: 0.3,
@@ -352,7 +330,7 @@ class TrainingSessionAnalyzer {
                     },
                     {
                         label: 'Stability Score (%)',
-                        data: this.throws.map(t => t.stabilityScore),
+                        data: this.throws.map(t => t.stabilityScore || 0),
                         borderColor: '#48bb78',
                         backgroundColor: 'rgba(72, 187, 120, 0.1)',
                         tension: 0.3,
@@ -406,7 +384,7 @@ class TrainingSessionAnalyzer {
         }
 
         const labels = this.throws.map((_, i) => `Throw ${i + 1}`);
-        const data = this.throws.map(t => t.decelRate);
+        const data = this.throws.map(t => t.decelRate || 0);
 
         this.charts.decelTrend = new Chart(ctx, {
             type: 'bar',
@@ -463,12 +441,12 @@ class TrainingSessionAnalyzer {
             row.innerHTML = `
                 <td class="throw-number">#${index + 1}</td>
                 <td>${time}</td>
-                <td>${throwData.pushoffStrength.toFixed(2)}</td>
-                <td>${throwData.peakVelocity.toFixed(2)}</td>
-                <td>${throwData.slideDuration.toFixed(2)}</td>
-                <td>${throwData.decelRate.toFixed(3)}</td>
-                <td>${throwData.stabilityScore.toFixed(0)}%</td>
-                <td class="efficiency-${throwData.glideEfficiency.toLowerCase().replace(' ', '-')}">${throwData.glideEfficiency}</td>
+                <td>${(throwData.pushoffStrength || 0).toFixed(2)}</td>
+                <td>${(throwData.peakVelocity || 0).toFixed(2)}</td>
+                <td>${(throwData.slideDuration || 0).toFixed(2)}</td>
+                <td>${(throwData.decelRate || 0).toFixed(3)}</td>
+                <td>${(throwData.stabilityScore || 0).toFixed(0)}%</td>
+                <td class="efficiency-${(throwData.glideEfficiency || 'good').toLowerCase().replace(' ', '-')}">${throwData.glideEfficiency || 'Good'}</td>
                 <td class="table-actions">
                     <button class="table-btn view" onclick="window.sessionAnalyzer.viewThrowDetails(${index})">View</button>
                     <button class="table-btn delete" onclick="window.sessionAnalyzer.deleteThrow(${index})">Delete</button>
@@ -486,9 +464,6 @@ class TrainingSessionAnalyzer {
         document.getElementById('analysisTitle').textContent = `Throw #${index + 1} Analysis`;
         document.getElementById('individualAnalysis').style.display = 'block';
 
-        // Create detailed charts for this throw
-        // Note: This would require the raw sensor data, which we'd need to store
-        // For now, show detailed metrics
         this.showDetailedMetrics(throwData);
 
         if (window.analytics) {
@@ -501,12 +476,12 @@ class TrainingSessionAnalyzer {
         metricsContainer.innerHTML = '';
 
         const metrics = [
-            { label: 'Push-off Strength', value: `${throwData.pushoffStrength.toFixed(2)} m/s²` },
-            { label: 'Peak Velocity', value: `${throwData.peakVelocity.toFixed(2)} m/s` },
-            { label: 'Slide Duration', value: `${throwData.slideDuration.toFixed(2)} seconds` },
-            { label: 'Deceleration Rate', value: `${throwData.decelRate.toFixed(3)} m/s²` },
-            { label: 'Stability Score', value: `${throwData.stabilityScore.toFixed(0)}%` },
-            { label: 'Glide Efficiency', value: throwData.glideEfficiency },
+            { label: 'Push-off Strength', value: `${(throwData.pushoffStrength || 0).toFixed(2)} m/s²` },
+            { label: 'Peak Velocity', value: `${(throwData.peakVelocity || 0).toFixed(2)} m/s` },
+            { label: 'Slide Duration', value: `${(throwData.slideDuration || 0).toFixed(2)} seconds` },
+            { label: 'Deceleration Rate', value: `${(throwData.decelRate || 0).toFixed(3)} m/s²` },
+            { label: 'Stability Score', value: `${(throwData.stabilityScore || 0).toFixed(0)}%` },
+            { label: 'Glide Efficiency', value: throwData.glideEfficiency || 'Good' },
             { label: 'Recorded At', value: new Date(throwData.timestamp).toLocaleString() }
         ];
 
@@ -559,7 +534,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // Handle page visibility to update data when returning from main page
 document.addEventListener('visibilitychange', () => {
     if (!document.hidden && window.sessionAnalyzer) {
-        window.sessionAnalyzer.checkForNewThrow();
+        window.sessionAnalyzer.loadSessionData();
         window.sessionAnalyzer.updateUI();
     }
 });
