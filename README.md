@@ -39,9 +39,13 @@ A mobile web application that uses your phone's built-in sensors (accelerometer 
 
 ```
 peel_weight/
-├── index.html          # Main HTML structure
-├── styles.css          # CSS styling and responsive design
-├── script.js           # JavaScript application logic
+├── index.html          # Main recording page
+├── comparison.html     # Training session analysis page
+├── styles.css          # Main CSS styling and responsive design
+├── comparison.css      # Additional CSS for comparison page
+├── script.js           # Main application logic for recording
+├── comparison.js       # Session analysis and comparison logic
+├── analytics.js        # Lightweight usage tracking
 └── README.md           # This documentation file
 ```
 
