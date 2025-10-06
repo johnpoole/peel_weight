@@ -11,12 +11,12 @@
 <body>
     <div class="container">
         <header>
-            <nav class="nav-menu">
-                <a href="index.html" class="nav-link active">📱 Record</a>
-                <a href="comparison.html" class="nav-link">📊 Analysis</a>
-            </nav>
-            <h1>🥌 Curling Slide Analyzer</h1>
-            <p>Analyze your delivery mechanics and slide efficiency</p>
+            <div class="header-row">
+                <h1>🥌 Curling Slide Analyzer</h1>
+                <nav class="nav-menu">
+                    <a href="comparison.html" class="nav-link">📊 Analysis</a>
+                </nav>
+            </div>
         </header>
 
         <main>
@@ -26,7 +26,7 @@
                     <span class="status-dot" id="statusDot"></span>
                     <span id="statusText">Ready to Record</span>
                 </div>
-                <div class="sensor-status">
+                <div class="sensor-status" id="sensorStatus" style="display: none;">
                     <div class="sensor-check">
                         <span>📱 Accelerometer:</span>
                         <span id="accelStatus">Checking...</span>
@@ -40,13 +40,9 @@
 
             <!-- Controls Section -->
             <section class="controls-section">
-                <button id="recordBtn" class="record-btn">
+                <button id="recordBtn" class="record-btn large-btn">
                     <span class="btn-icon">⏺️</span>
                     <span class="btn-text">Start Recording</span>
-                </button>
-                <button id="clearBtn" class="clear-btn" disabled>
-                    <span class="btn-icon">🗑️</span>
-                    <span class="btn-text">Clear Data</span>
                 </button>
             </section>
 
@@ -148,15 +144,15 @@
                 <p class="tip">💡 <strong>Tip:</strong> Keep phone secured in chest pocket or with a chest strap for best torso motion capture.</p>
             </section>
 
-            <!-- Privacy Notice -->
-            <section class="privacy-section">
-                <h3>Privacy & Analytics</h3>
-                <p>This app collects anonymous usage analytics to help improve the experience. No personal data is collected.</p>
-                <div class="privacy-controls">
-                    <button onclick="analyticsOptOut()" class="privacy-btn">Disable Analytics</button>
-                    <button onclick="analyticsOptIn()" class="privacy-btn">Enable Analytics</button>
-                </div>
+            <!-- Clear Data Section (Bottom of page) -->
+            <section class="clear-section">
+                <button id="clearBtn" class="clear-btn" disabled>
+                    <span class="btn-icon">🗑️</span>
+                    <span class="btn-text">Clear Data</span>
+                </button>
             </section>
+
+            
         </main>
     </div>
 

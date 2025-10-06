@@ -75,10 +75,24 @@ header {
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
+.header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.header-row .nav-menu {
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+}
+
 header h1 {
     font-size: 2rem;
     color: #4a5568;
-    margin-bottom: 5px;
+    margin-bottom: 0;
 }
 
 header p {
@@ -172,6 +186,15 @@ section {
     touch-action: manipulation;
 }
 
+.large-btn {
+    padding: 25px 40px;
+    font-size: 1.3rem;
+    min-height: 80px;
+    width: 100%;
+    max-width: 300px;
+    margin: 0 auto;
+}
+
 .record-btn {
     background: linear-gradient(135deg, #48bb78, #38a169);
     color: white;
@@ -202,6 +225,20 @@ section {
 .clear-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+}
+
+/* Clear section at bottom */
+.clear-section {
+    margin-top: 30px;
+    padding: 20px;
+    text-align: center;
+    border-top: 1px solid #e2e8f0;
+    background: rgba(255, 255, 255, 0.7);
+}
+
+.clear-section .clear-btn {
+    max-width: 200px;
+    margin: 0 auto;
 }
 
 .btn-icon {

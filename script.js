@@ -51,6 +51,9 @@ class CurlingSlideAnalyzer {
     async checkSensorSupport() {
         const accelStatus = document.getElementById('accelStatus');
         const gyroStatus = document.getElementById('gyroStatus');
+        const sensorStatusSection = document.getElementById('sensorStatus');
+        
+        let hasIssues = false;
 
         // Check accelerometer support
         if ('DeviceMotionEvent' in window) {
@@ -58,6 +61,7 @@ class CurlingSlideAnalyzer {
                 // iOS 13+ requires permission
                 accelStatus.textContent = 'Permission Required';
                 accelStatus.style.color = '#ed8936';
+                hasIssues = true;
             } else {
                 accelStatus.textContent = 'Available';
                 accelStatus.style.color = '#48bb78';
@@ -65,6 +69,7 @@ class CurlingSlideAnalyzer {
         } else {
             accelStatus.textContent = 'Not Supported';
             accelStatus.style.color = '#f56565';
+            hasIssues = true;
         }
 
         // Check gyroscope support
@@ -73,6 +78,7 @@ class CurlingSlideAnalyzer {
                 // iOS 13+ requires permission
                 gyroStatus.textContent = 'Permission Required';
                 gyroStatus.style.color = '#ed8936';
+                hasIssues = true;
             } else {
                 gyroStatus.textContent = 'Available';
                 gyroStatus.style.color = '#48bb78';
@@ -80,7 +86,11 @@ class CurlingSlideAnalyzer {
         } else {
             gyroStatus.textContent = 'Not Supported';
             gyroStatus.style.color = '#f56565';
+            hasIssues = true;
         }
+
+        // Only show sensor status if there are issues
+        sensorStatusSection.style.display = hasIssues ? 'block' : 'none';
     }
 
     async requestPermissions() {
