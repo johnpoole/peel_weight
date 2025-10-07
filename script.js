@@ -168,10 +168,11 @@ class CurlingSlideAnalyzer {
     startSensorListening() {
         // Auto-stop detection variables
         this.autoStopBuffer = []; // Buffer to track recent motion
-        this.autoStopThreshold = 1.5; // m/s² - settled motion threshold
-        this.autoStopDuration = 3.0; // seconds of calm motion to auto-stop
-        this.autoStopCheckInterval = 0.5; // check every 0.5 seconds
+        this.autoStopThreshold = 0.3; // m/s² - settled motion threshold for acceleration changes
+        this.autoStopDuration = 2.0; // seconds of calm motion to auto-stop (changed from 3.0)
+        this.autoStopCheckInterval = 0.3; // check every 0.3 seconds (changed from 0.5)
         this.lastAutoStopCheck = 0;
+        this.prevAcceleration = null; // Reset previous acceleration tracking
 
         // Listen to device motion (accelerometer + gyroscope)
         this.deviceMotionHandler = (event) => {
@@ -191,6 +192,10 @@ class CurlingSlideAnalyzer {
 
                 // Check for auto-stop (only after 10 seconds of recording to avoid stopping during push-off)
                 if (timestamp > 10.0 && timestamp - this.lastAutoStopCheck >= this.autoStopCheckInterval) {
+                    // Debug: log when auto-stop checking starts
+                    if (timestamp > 10.0 && timestamp < 10.5) {
+                        console.log('Auto-stop detection enabled at', timestamp.toFixed(1), 'seconds');
+                    }
                     this.checkAutoStop(event.accelerationIncludingGravity, timestamp);
                     this.lastAutoStopCheck = timestamp;
                 }
@@ -214,16 +219,30 @@ class CurlingSlideAnalyzer {
     }
 
     checkAutoStop(acceleration, timestamp) {
-        // Calculate total acceleration magnitude
-        const totalAccel = Math.sqrt(
-            Math.pow(acceleration.x || 0, 2) + 
-            Math.pow(acceleration.y || 0, 2) + 
-            Math.pow(acceleration.z || 0, 2)
+        // Calculate acceleration changes (remove gravity baseline)
+        // Store previous acceleration for comparison
+        if (!this.prevAcceleration) {
+            this.prevAcceleration = acceleration;
+            return;
+        }
+
+        // Calculate change in acceleration (this removes the gravity component)
+        const accelChangeX = Math.abs((acceleration.x || 0) - (this.prevAcceleration.x || 0));
+        const accelChangeY = Math.abs((acceleration.y || 0) - (this.prevAcceleration.y || 0));
+        const accelChangeZ = Math.abs((acceleration.z || 0) - (this.prevAcceleration.z || 0));
+        
+        const totalAccelChange = Math.sqrt(
+            Math.pow(accelChangeX, 2) + 
+            Math.pow(accelChangeY, 2) + 
+            Math.pow(accelChangeZ, 2)
         );
+
+        // Update previous acceleration
+        this.prevAcceleration = acceleration;
 
         // Add to buffer with timestamp
         this.autoStopBuffer.push({
-            acceleration: totalAccel,
+            acceleration: totalAccelChange,
             timestamp: timestamp
         });
 
@@ -240,6 +259,7 @@ class CurlingSlideAnalyzer {
 
             if (allCalm) {
                 console.log(`Auto-stopping: ${this.autoStopDuration}s of calm motion detected`);
+                console.log('Recent acceleration changes:', this.autoStopBuffer.map(p => p.acceleration.toFixed(3)));
                 this.stopRecording();
                 
                 // Show notification about auto-stop
