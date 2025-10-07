@@ -293,6 +293,13 @@ class CurlingSlideAnalyzer {
     }
 
     startSensorListening() {
+        // Auto-stop detection variables
+        this.autoStopBuffer = []; // Buffer to track recent motion
+        this.autoStopThreshold = 1.5; // m/s² - settled motion threshold
+        this.autoStopDuration = 3.0; // seconds of calm motion to auto-stop
+        this.autoStopCheckInterval = 0.5; // check every 0.5 seconds
+        this.lastAutoStopCheck = 0;
+
         // Listen to device motion (accelerometer + gyroscope)
         this.deviceMotionHandler = (event) => {
             if (!this.isRecording) return;
@@ -308,6 +315,12 @@ class CurlingSlideAnalyzer {
                 this.sensorData.acceleration.y.push(event.accelerationIncludingGravity.y || 0);
                 this.sensorData.acceleration.z.push(event.accelerationIncludingGravity.z || 0);
                 this.sensorData.acceleration.timestamps.push(timestamp);
+
+                // Check for auto-stop (only after 10 seconds of recording to avoid stopping during push-off)
+                if (timestamp > 10.0 && timestamp - this.lastAutoStopCheck >= this.autoStopCheckInterval) {
+                    this.checkAutoStop(event.accelerationIncludingGravity, timestamp);
+                    this.lastAutoStopCheck = timestamp;
+                }
             }
 
             // Gyroscope data - body rotation rates (convert to degrees/second)
@@ -325,6 +338,68 @@ class CurlingSlideAnalyzer {
         };
 
         window.addEventListener('devicemotion', this.deviceMotionHandler);
+    }
+
+    checkAutoStop(acceleration, timestamp) {
+        // Calculate total acceleration magnitude
+        const totalAccel = Math.sqrt(
+            Math.pow(acceleration.x || 0, 2) + 
+            Math.pow(acceleration.y || 0, 2) + 
+            Math.pow(acceleration.z || 0, 2)
+        );
+
+        // Add to buffer with timestamp
+        this.autoStopBuffer.push({
+            acceleration: totalAccel,
+            timestamp: timestamp
+        });
+
+        // Keep only recent data (within auto-stop duration)
+        this.autoStopBuffer = this.autoStopBuffer.filter(
+            point => timestamp - point.timestamp <= this.autoStopDuration
+        );
+
+        // Check if we have enough data and all recent motion is below threshold
+        if (this.autoStopBuffer.length >= (this.autoStopDuration / this.autoStopCheckInterval)) {
+            const allCalm = this.autoStopBuffer.every(
+                point => point.acceleration < this.autoStopThreshold
+            );
+
+            if (allCalm) {
+                console.log(`Auto-stopping: ${this.autoStopDuration}s of calm motion detected`);
+                this.stopRecording();
+                
+                // Show notification about auto-stop
+                this.showAutoStopNotification();
+            }
+        }
+    }
+
+    showAutoStopNotification() {
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #48bb78;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: bold;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            text-align: center;
+        `;
+        notification.textContent = '🛑 Auto-stopped: Motion settled';
+        document.body.appendChild(notification);
+        
+        // Remove after 3 seconds
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 3000);
     }
 
     stopSensorListening() {
@@ -442,6 +517,9 @@ class CurlingSlideAnalyzer {
             return;
         }
 
+        // Trim the data to actual throw motion
+        this.trimToActualThrow();
+
         // Calculate velocity by integrating forward acceleration
         this.calculateVelocity();
 
@@ -449,6 +527,72 @@ class CurlingSlideAnalyzer {
         console.log('Acceleration points:', this.sensorData.acceleration.x.length);
         console.log('Gyroscope points:', this.sensorData.gyroscope.x.length);
         console.log('Velocity points:', this.sensorData.velocity.x.length);
+    }
+
+    trimToActualThrow() {
+        const accel = this.sensorData.acceleration;
+        const gyro = this.sensorData.gyroscope;
+        
+        if (accel.x.length === 0) return;
+
+        // Find start: first significant acceleration spike (push-off)
+        const accelThreshold = 2.0; // m/s² - significant movement
+        let startIndex = 0;
+        
+        for (let i = 0; i < accel.x.length; i++) {
+            const totalAccel = Math.sqrt(
+                Math.pow(accel.x[i], 2) + 
+                Math.pow(accel.y[i], 2) + 
+                Math.pow(accel.z[i], 2)
+            );
+            if (totalAccel > accelThreshold) {
+                startIndex = Math.max(0, i - 5); // Include 5 points before movement
+                break;
+            }
+        }
+
+        // Find end: when motion settles down after delivery
+        let endIndex = accel.x.length - 1;
+        const settlePeriod = 20; // Look for 20 consecutive calm points
+        let calmCount = 0;
+        
+        for (let i = startIndex + 30; i < accel.x.length; i++) { // Start looking after initial movement
+            const totalAccel = Math.sqrt(
+                Math.pow(accel.x[i], 2) + 
+                Math.pow(accel.y[i], 2) + 
+                Math.pow(accel.z[i], 2)
+            );
+            
+            if (totalAccel < 1.5) { // Settled motion
+                calmCount++;
+                if (calmCount >= settlePeriod) {
+                    endIndex = i - settlePeriod + 10; // Include a few points after settling
+                    break;
+                }
+            } else {
+                calmCount = 0; // Reset if motion detected
+            }
+        }
+
+        console.log(`Trimming data: ${startIndex} to ${endIndex} (${endIndex - startIndex} points)`);
+
+        // Trim acceleration data
+        this.sensorData.acceleration.x = accel.x.slice(startIndex, endIndex + 1);
+        this.sensorData.acceleration.y = accel.y.slice(startIndex, endIndex + 1);
+        this.sensorData.acceleration.z = accel.z.slice(startIndex, endIndex + 1);
+        this.sensorData.acceleration.timestamps = accel.timestamps.slice(startIndex, endIndex + 1);
+
+        // Adjust timestamps to start from 0
+        const startTime = this.sensorData.acceleration.timestamps[0];
+        this.sensorData.acceleration.timestamps = this.sensorData.acceleration.timestamps.map(t => t - startTime);
+
+        // Trim gyroscope data (matching indices)
+        if (gyro.x.length > 0) {
+            this.sensorData.gyroscope.x = gyro.x.slice(startIndex, endIndex + 1);
+            this.sensorData.gyroscope.y = gyro.y.slice(startIndex, endIndex + 1);
+            this.sensorData.gyroscope.z = gyro.z.slice(startIndex, endIndex + 1);
+            this.sensorData.gyroscope.timestamps = gyro.timestamps.slice(startIndex, endIndex + 1).map(t => t - startTime);
+        }
     }
 
     calculateVelocity() {
