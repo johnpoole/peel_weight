@@ -237,7 +237,6 @@ class CurlingSlideAnalyzer {
 
     updateUI() {
         const recordBtn = document.getElementById('recordBtn');
-        const clearBtn = document.getElementById('clearBtn');
         const statusDot = document.getElementById('statusDot');
         const statusText = document.getElementById('statusText');
         const liveDataSection = document.getElementById('liveDataSection');
@@ -248,7 +247,6 @@ class CurlingSlideAnalyzer {
             statusDot.classList.add('recording');
             statusText.textContent = 'Recording...';
             liveDataSection.style.display = 'block';
-            clearBtn.disabled = true;
         } else {
             recordBtn.innerHTML = '<span class="btn-icon">⏺️</span><span class="btn-text">Start Recording</span>';
             recordBtn.classList.remove('recording');
@@ -257,12 +255,10 @@ class CurlingSlideAnalyzer {
             if (this.hasData()) {
                 statusText.textContent = 'Data Ready for Analysis';
                 statusDot.classList.add('processing');
-                clearBtn.disabled = false;
                 liveDataSection.style.display = 'none';
             } else {
                 statusText.textContent = 'Ready to Record';
                 statusDot.classList.remove('processing');
-                clearBtn.disabled = true;
                 liveDataSection.style.display = 'none';
             }
         }
