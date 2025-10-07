@@ -808,7 +808,16 @@ class CurlingSlideAnalyzer {
             Math.sqrt(Math.pow(pitch, 2) + Math.pow(gyro.y[i] || 0, 2))
         );
         const stabilityVariance = this.calculateVariance(pitchRoll);
-        const stabilityScore = Math.max(0, 100 - (stabilityVariance * 2));
+        
+        // Scale the stability score more appropriately for gyroscope data
+        // Use a logarithmic scale since gyro variance can be quite high
+        const stabilityScore = Math.max(0, Math.min(100, 100 - Math.log10(stabilityVariance + 1) * 20));
+        
+        console.log('Stability debug:', {
+            pitchRollSamples: pitchRoll.length,
+            variance: stabilityVariance,
+            score: stabilityScore
+        });
 
         // Glide efficiency assessment
         let glideEfficiency = 'Good';
