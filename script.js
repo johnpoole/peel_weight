@@ -16,7 +16,6 @@ class CurlingSlideAnalyzer {
     async init() {
         this.setupEventListeners();
         await this.checkSensorSupport();
-        this.checkBluetoothSupport();
         this.updateUI();
     }
 
