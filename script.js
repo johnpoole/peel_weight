@@ -10,17 +10,24 @@ class CurlingSlideAnalyzer {
         this.recordingInterval = null;
         this.charts = {};
         
+        // Bluetooth watch integration
+        this.bluetoothDevice = null;
+        this.bluetoothCharacteristic = null;
+        this.isWatchConnected = false;
+        
         this.init();
     }
 
     async init() {
         this.setupEventListeners();
         await this.checkSensorSupport();
+        this.checkBluetoothSupport();
         this.updateUI();
     }
 
     setupEventListeners() {
         const recordBtn = document.getElementById('recordBtn');
+        const connectWatchBtn = document.getElementById('connectWatchBtn');
 
         recordBtn.addEventListener('click', () => {
             if (this.isRecording) {
@@ -28,6 +35,10 @@ class CurlingSlideAnalyzer {
             } else {
                 this.startRecording();
             }
+        });
+
+        connectWatchBtn.addEventListener('click', () => {
+            this.connectToWatch();
         });
 
         // Handle orientation change
@@ -40,6 +51,14 @@ class CurlingSlideAnalyzer {
         // Handle window resize
         window.addEventListener('resize', () => {
             this.resizeCharts();
+        });
+
+        // Add keyboard shortcuts for testing watch commands
+        document.addEventListener('keydown', (event) => {
+            if (event.ctrlKey && event.key === 'r') {
+                event.preventDefault();
+                this.handleWatchCommand('TOGGLE');
+            }
         });
     }
 
@@ -86,6 +105,115 @@ class CurlingSlideAnalyzer {
 
         // Only show sensor status if there are issues
         sensorStatusSection.style.display = hasIssues ? 'block' : 'none';
+    }
+
+    checkBluetoothSupport() {
+        if (!navigator.bluetooth) {
+            console.log('Web Bluetooth not supported');
+            return false;
+        }
+        console.log('Web Bluetooth supported');
+        return true;
+    }
+
+    async connectToWatch() {
+        if (!this.checkBluetoothSupport()) {
+            alert('Web Bluetooth is not supported on this browser/device');
+            return false;
+        }
+
+        try {
+            console.log('Requesting Bluetooth device...');
+            
+            // Request any device that advertises a battery service or generic access
+            this.bluetoothDevice = await navigator.bluetooth.requestDevice({
+                acceptAllDevices: true,
+                optionalServices: [
+                    'battery_service',
+                    'generic_access',
+                    'device_information',
+                    '0000180f-0000-1000-8000-00805f9b34fb', // Battery Service
+                    '00001800-0000-1000-8000-00805f9b34fb', // Generic Access
+                    '0000181c-0000-1000-8000-00805f9b34fb'  // User Data
+                ]
+            });
+
+            console.log('Connecting to GATT Server...');
+            const server = await this.bluetoothDevice.gatt.connect();
+            
+            // For now, just establish connection
+            // We'll use a simple approach: send custom notifications
+            this.isWatchConnected = true;
+            this.showWatchStatus('Connected to ' + this.bluetoothDevice.name);
+            
+            // Set up disconnect handler
+            this.bluetoothDevice.addEventListener('gattserverdisconnected', () => {
+                this.isWatchConnected = false;
+                this.showWatchStatus('Watch disconnected');
+            });
+
+            return true;
+        } catch (error) {
+            console.error('Failed to connect to watch:', error);
+            this.showWatchStatus('Failed to connect: ' + error.message);
+            return false;
+        }
+    }
+
+    handleWatchCommand(command) {
+        console.log('Received watch command:', command);
+        
+        switch(command.toUpperCase()) {
+            case 'START':
+                if (!this.isRecording) {
+                    this.startRecording();
+                    this.showWatchStatus('Started recording via watch');
+                }
+                break;
+            case 'STOP':
+                if (this.isRecording) {
+                    this.stopRecording();
+                    this.showWatchStatus('Stopped recording via watch');
+                }
+                break;
+            case 'TOGGLE':
+                if (this.isRecording) {
+                    this.stopRecording();
+                    this.showWatchStatus('Stopped recording via watch');
+                } else {
+                    this.startRecording();
+                    this.showWatchStatus('Started recording via watch');
+                }
+                break;
+            default:
+                console.log('Unknown watch command:', command);
+        }
+    }
+
+    showWatchStatus(message) {
+        // Create temporary notification for watch status
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 60px;
+            right: 20px;
+            background: #667eea;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        `;
+        notification.textContent = `⌚ ${message}`;
+        document.body.appendChild(notification);
+        
+        // Remove after 2 seconds
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 2000);
     }
 
     async requestPermissions() {
@@ -237,9 +365,19 @@ class CurlingSlideAnalyzer {
 
     updateUI() {
         const recordBtn = document.getElementById('recordBtn');
+        const connectWatchBtn = document.getElementById('connectWatchBtn');
         const statusDot = document.getElementById('statusDot');
         const statusText = document.getElementById('statusText');
         const liveDataSection = document.getElementById('liveDataSection');
+
+        // Update watch button
+        if (this.isWatchConnected) {
+            connectWatchBtn.classList.add('connected');
+            connectWatchBtn.innerHTML = '<span class="btn-icon">⌚</span><span class="btn-text">Watch Connected</span>';
+        } else {
+            connectWatchBtn.classList.remove('connected');
+            connectWatchBtn.innerHTML = '<span class="btn-icon">⌚</span><span class="btn-text">Connect Watch</span>';
+        }
 
         if (this.isRecording) {
             recordBtn.innerHTML = '<span class="btn-icon">⏹️</span><span class="btn-text">Stop Recording</span>';

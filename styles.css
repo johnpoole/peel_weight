@@ -241,6 +241,43 @@ section {
     margin: 0 auto;
 }
 
+/* Watch connection button */
+.watch-btn {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 10px;
+    width: 100%;
+    max-width: 200px;
+    margin-left: auto;
+    margin-right: auto;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.watch-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.watch-btn.connected {
+    background: linear-gradient(135deg, #48bb78, #38a169);
+    box-shadow: 0 2px 8px rgba(72, 187, 120, 0.3);
+}
+
+.watch-btn.connected:hover {
+    box-shadow: 0 4px 12px rgba(72, 187, 120, 0.4);
+}
+
 .btn-icon {
     font-size: 1.2rem;
 }
