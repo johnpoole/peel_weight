@@ -21,7 +21,6 @@ class CurlingSlideAnalyzer {
 
     setupEventListeners() {
         const recordBtn = document.getElementById('recordBtn');
-        const clearBtn = document.getElementById('clearBtn');
 
         recordBtn.addEventListener('click', () => {
             if (this.isRecording) {
@@ -29,10 +28,6 @@ class CurlingSlideAnalyzer {
             } else {
                 this.startRecording();
             }
-        });
-
-        clearBtn.addEventListener('click', () => {
-            this.clearData();
         });
 
         // Handle orientation change
